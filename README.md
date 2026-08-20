@@ -1,133 +1,142 @@
 # 32-bit RV32I Pipelined RISC-V Processor
 
-A 32-bit RV32I RISC-V processor designed and implemented in Verilog HDL using a 5-stage pipelined architecture.
+A modular **32-bit RISC-V RV32I processor** implemented in **Verilog HDL** using a classic **5-stage pipeline: IF → ID → EX → MEM → WB**.
 
-## Project Overview
+The repository is structured as an RTL-focused hardware design project, separating processor RTL, verification, simulation assets, documentation, and constraints.
 
-This project implements a 32-bit RISC-V processor based on the RV32I instruction set.
+## Highlights
 
-The processor follows a 5-stage pipeline:
+- 32-bit RV32I architecture
+- 5-stage in-order pipeline
+- Modular synthesizable RTL organization
+- Dedicated control and datapath logic
+- Pipeline registers between stages
+- Separate instruction and data memory models
+- Module-level Verilog testbenches
+- Waveform-oriented RTL verification workflow
 
-1. Instruction Fetch (IF)
-2. Instruction Decode (ID)
-3. Execute (EX)
-4. Memory Access (MEM)
-5. Write Back (WB)
+## Supported Instructions
 
-The design was developed using a modular RTL approach, with separate modules for the datapath, control logic, instruction and data memory, register file, ALU, branch handling, and pipeline registers.
-
-The processor was developed and simulated using Xilinx Vivado and XSim.
-
-## 5-Stage Pipeline
-
-| Stage | Description |
+| Type | Instructions |
 |---|---|
-| IF | Fetches instructions from instruction memory using the Program Counter |
-| ID | Decodes the instruction and reads register operands |
-| EX | Performs ALU operations and branch calculations |
-| MEM | Performs load and store memory operations |
-| WB | Writes the final result back to the register file |
+| R-Type | `ADD`, `SUB`, `AND`, `OR` |
+| I-Type | `ADDI`, `LW` |
+| S-Type | `SW` |
+| B-Type | `BEQ` |
 
-Pipeline registers are used to transfer data and control signals between the different stages.
-
-This allows multiple instructions to be processed simultaneously at different stages of the processor pipeline.
+> This table reflects the current implementation and does not represent the complete RV32I specification.
 
 ## Architecture
 
-The processor consists of the following major blocks:
+```text
+                 ┌───────────────┐
+                 │      IF       │  Instruction Fetch
+                 └───────┬───────┘
+                         │
+                      IF/ID
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │      ID       │  Instruction Decode
+                 └───────┬───────┘
+                         │
+                      ID/EX
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │      EX       │  ALU / Branch
+                 └───────┬───────┘
+                         │
+                     EX/MEM
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │     MEM       │  Data Memory
+                 └───────┬───────┘
+                         │
+                     MEM/WB
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │      WB       │  Register Write Back
+                 └───────────────┘
+```
+
+## Repository Structure
+
+```text
+rv32i-riscv-processor-verilog/
+├── rtl/
+│   ├── control/       # Control and decode logic
+│   ├── core/          # Core and top-level integration
+│   ├── datapath/      # ALU, register file, PC and datapath blocks
+│   └── memory/        # Instruction and data memory
+├── tb/                # Module-level Verilog testbenches
+├── sim/
+│   ├── programs/      # Simulation programs / instruction data
+│   └── waves/         # Waveform output location
+├── docs/              # Design documentation
+├── constraints/       # Hardware constraint files
+├── README.md
+└── .gitignore
+```
+
+## RTL Blocks
+
+The processor is composed from reusable blocks including:
 
 - Program Counter
 - Instruction Memory
-- IF/ID Pipeline Register
 - Instruction Decoder
 - Register File
 - Immediate Generator
 - Control Unit
-- ID/EX Pipeline Register
 - ALU Control
 - ALU
 - Branch Unit
-- EX/MEM Pipeline Register
 - Data Memory
-- MEM/WB Pipeline Register
 - PC Adder
-- Next PC Multiplexer
-- RISC-V Core
-- Top-Level Module
+- Next-PC Multiplexer
+- IF/ID, ID/EX, EX/MEM and MEM/WB pipeline registers
+- RISC-V core and top-level integration
 
-## Supported Instructions
+## Verification
 
-The current implementation supports the following RV32I instructions:
+The `tb/` directory contains focused testbenches for major components such as the ALU, ALU control, branch unit, control unit, memories, immediate generator, instruction decoder, PC logic, and register file.
 
-### R-Type
+Simulation artifacts are intentionally kept separate from RTL so the design remains easy to navigate and review.
 
-- ADD
-- SUB
-- AND
-- OR
+### Simulation Environment
 
-### I-Type
+The project was developed and simulated using **Xilinx Vivado / XSim**. The RTL is written in Verilog HDL and the testbench structure supports waveform-based debugging.
 
-- ADDI
-- LW
+## Design Flow
 
-### S-Type
+1. Fetch the instruction using the program counter.
+2. Decode the instruction and generate control signals.
+3. Read source operands and generate the required immediate.
+4. Execute arithmetic, logical, address-generation, or branch operations.
+5. Perform load/store memory access where required.
+6. Write the final result back to the register file.
+7. Transfer stage information through the pipeline registers.
 
-- SW
+## Current Scope
 
-### B-Type
+This repository focuses on a small RV32I subset and its modular RTL implementation and verification. Natural next extensions include additional RV32I instructions, forwarding, hazard detection, branch flushing, automated regression testing, and synthesis/STA reporting.
 
-- BEQ
+## Tools
 
-## RTL Design
+- **HDL:** Verilog
+- **ISA:** RISC-V RV32I
+- **Simulation:** Xilinx Vivado / XSim
+- **Verification:** Verilog testbenches and waveform inspection
 
-| Module | Description |
-|---|---|
-| `riscv_top.v` | Top-level processor module |
-| `riscv_core.v` | Main pipelined processor core |
-| `instruction_memory.v` | Stores and provides instructions |
-| `instruction_decoder.v` | Decodes RISC-V instruction fields |
-| `immediate_generator.v` | Generates immediate values |
-| `control_unit.v` | Generates processor control signals |
-| `alu_control.v` | Generates ALU operation control |
-| `alu.v` | Performs arithmetic and logical operations |
-| `branch_unit.v` | Handles branch decision logic |
-| `data_memory.v` | Handles load and store operations |
-| `register_file.v` | Implements the 32-register register file |
-| `program_counter.v` | Stores the current program counter |
-| `pc_adder.v` | Calculates the sequential PC value |
-| `next_pc_mux.v` | Selects the next PC value |
+## Author
 
-## Pipeline Data Flow
+**GITTYCAT12**
 
-        ┌─────┐
-        │  IF │
-        └──┬──┘
-           │
-        IF/ID
-           │
-           ▼
-        ┌─────┐
-        │  ID │
-        └──┬──┘
-           │
-        ID/EX
-           │
-           ▼
-        ┌─────┐
-        │  EX │
-        └──┬──┘
-           │
-        EX/MEM
-           │
-           ▼
-        ┌─────┐
-        │ MEM │
-        └──┬──┘
-           │
-        MEM/WB
-           │
-           ▼
-        ┌─────┐
-        │  WB │
-        └─────┘
+Hardware-design portfolio project focused on RTL design, processor microarchitecture, and digital verification.
+
+## License
+
+Released under the MIT License. See [`LICENSE`](LICENSE) for details.
