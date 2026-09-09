@@ -5,13 +5,20 @@ module tb_riscv_core;
     reg clk;
     reg reset;
 
+    wire [31:0] debug_pc;
+    wire [31:0] debug_instruction;
+    wire [31:0] debug_alu_result;
+
     // ------------------------------------------------
     // DUT
     // ------------------------------------------------
 
     riscv_core uut (
-        .clk   (clk),
-        .reset (reset)
+        .clk              (clk),
+        .reset            (reset),
+        .debug_pc         (debug_pc),
+        .debug_instruction(debug_instruction),
+        .debug_alu_result (debug_alu_result)
     );
 
     // ------------------------------------------------
@@ -58,8 +65,8 @@ module tb_riscv_core;
         $display(
             "Time=%0t | PC=%h | Instruction=%h",
             $time,
-            uut.current_pc,
-            uut.instruction
+            debug_pc,
+            debug_instruction
         );
 
     end
