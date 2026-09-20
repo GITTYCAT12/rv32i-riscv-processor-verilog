@@ -15,6 +15,7 @@ This document tracks the verification scope of the RV32I processor and provides 
 - Program-counter sequencing
 - Register-file read/write behavior
 - Next-PC selection
+- Top-level pipeline integration smoke test
 
 ## Coverage checklist
 
@@ -32,11 +33,24 @@ This document tracks the verification scope of the RV32I processor and provides 
 | PC adder | `tb/tb_pc_adder.v` | Covered |
 | Program counter | `tb/tb_program_counter.v` | Covered |
 | Register file | `tb/tb_register_file.v` | Covered |
+| Top-level RV32I smoke test | `tb/tb_rv32i_smoke.v` | Implemented; simulation execution pending |
+
+## Top-level smoke-test scope
+
+The new integration test exercises the program already loaded in instruction memory and checks:
+
+- `ADDI`, `ADD`, `SUB`, `AND`, and `OR` results through the register file.
+- `SW` followed by `LW` using the processor data-memory path.
+- A taken `BEQ` and the resulting flush of the younger `ADDI` instruction.
+- Final write-back values for the directed program.
+
+The testbench is self-checking and returns a non-zero simulator exit status when any expected value does not match.
 
 ## Next verification targets
 
-- Add directed tests for load/store instruction sequences.
-- Add branch and control-flow regression cases.
+- Execute the top-level smoke test in the documented simulator environment and record the console result.
+- Add directed tests for additional load/store instruction sequences.
+- Expand branch and control-flow regression cases.
 - Add pipeline-oriented checks for forwarding and stall behavior.
 - Add end-to-end instruction programs and waveform review.
 
