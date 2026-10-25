@@ -36,8 +36,14 @@ module tb_rv32i_smoke;
         reset    = 1'b1;
         failures = 0;
 
+        // Inject an unsupported R-type funct7 encoding at a later instruction
+        // address. With no illegal-instruction trap implemented, it must not
+        // commit a register write.
+        #1;
+        dut.imem.memory[15] = 32'h02208533; // ADD x10,x1,x2 with funct7=0000001
+
         // Reset the processor and register file.
-        #20;
+        #19;
         reset = 1'b0;
 
         // Allow the 5-stage pipeline to retire the program and settle.
@@ -62,6 +68,7 @@ module tb_rv32i_smoke;
         // Taken BEQ must flush the following ADDI x8,x0,99.
         check_reg(5'd8, 32'd0);
         check_reg(5'd9, 32'd42);
+        check_reg(5'd10, 32'd0);
 
         if (failures == 0)
             $display("PASS: RV32I top-level smoke test completed successfully.");

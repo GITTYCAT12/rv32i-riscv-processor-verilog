@@ -191,6 +191,18 @@ module riscv_core (
                         id_alu_sel = 4'b0000;
 
                 endcase
+
+                // ADD/SUB and SRL/SRA are the only R-type operations that
+                // permit funct7=0100000. Other R-type operations require zero.
+                // This core has no illegal-instruction trap, so unsupported
+                // encodings must not write a destination register.
+                if (((id_funct3 == 3'b000) || (id_funct3 == 3'b101)) ?
+                    ((id_funct7 != 7'b0000000) && (id_funct7 != 7'b0100000)) :
+                    (id_funct7 != 7'b0000000)) begin
+                    id_reg_write = 1'b0;
+                    id_uses_rs1 = 1'b0;
+                    id_uses_rs2 = 1'b0;
+                end
             end
 
 
