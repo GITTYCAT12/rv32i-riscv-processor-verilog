@@ -271,6 +271,7 @@ module riscv_core (
                 id_reg_write  = 1'b1;
                 id_mem_read   = 1'b1;
                 id_mem_to_reg = 1'b1;
+                id_wb_sel     = 2'b01;
                 id_alu_src    = 1'b1;
 
                 id_alu_sel = 4'b0000;

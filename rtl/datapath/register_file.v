@@ -33,8 +33,17 @@ module register_file (
 
     end
 
-    assign read_data1 = (rs1 == 5'b00000) ? 32'b0 : registers[rs1];
+    // Provide write-through behavior when decode reads the register being
+    // written back on this clock edge. Without it, back-to-back dependent
+    // instructions can capture the previous register value.
+    assign read_data1 =
+        (rs1 == 5'b00000) ? 32'b0 :
+        (reg_write && (rd != 5'b00000) && (rd == rs1)) ? write_data :
+        registers[rs1];
 
-    assign read_data2 = (rs2 == 5'b00000) ? 32'b0 : registers[rs2];
+    assign read_data2 =
+        (rs2 == 5'b00000) ? 32'b0 :
+        (reg_write && (rd != 5'b00000) && (rd == rs2)) ? write_data :
+        registers[rs2];
 
 endmodule
