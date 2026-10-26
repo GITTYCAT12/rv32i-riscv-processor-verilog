@@ -19,5 +19,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes iverilog
 
+      - name: Run instruction decoder unit test
+        run: |
+          build_dir="$(mktemp -d)"
+          trap 'rm -rf "$build_dir"' EXIT
+          iverilog -g2012 -Wall -s tb_instruction_decoder \
+            -o "$build_dir/decoder.vvp" rtl/control/instruction_decoder.v tb/tb_instruction_decoder.v
+          vvp "$build_dir/decoder.vvp"
+
       - name: Run top-level RV32I smoke test
         run: bash sim/run_smoke.sh
