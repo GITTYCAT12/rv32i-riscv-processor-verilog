@@ -27,5 +27,13 @@ jobs:
             -o "$build_dir/decoder.vvp" rtl/control/instruction_decoder.v tb/tb_instruction_decoder.v
           vvp "$build_dir/decoder.vvp"
 
+      - name: Run immediate generator signed-encoding test
+        run: |
+          build_dir="$(mktemp -d)"
+          trap 'rm -rf "$build_dir"' EXIT
+          iverilog -g2012 -Wall -s tb_immediate_generator \
+            -o "$build_dir/immediate.vvp" rtl/datapath/immediate_generator.v tb/tb_immediate_generator.v
+          vvp "$build_dir/immediate.vvp"
+
       - name: Run top-level RV32I smoke test
         run: bash sim/run_smoke.sh

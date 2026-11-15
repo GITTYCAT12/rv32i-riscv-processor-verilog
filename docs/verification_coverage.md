@@ -8,7 +8,7 @@ This document tracks the verification scope of the RV32I processor and provides 
 - ALU control decoding
 - Branch condition evaluation
 - Control-unit decoding
-- Immediate generation
+- Immediate generation, including signed I/S/B encodings
 - Instruction decoding
 - Instruction memory access
 - Data memory read/write behavior
@@ -21,37 +21,41 @@ This document tracks the verification scope of the RV32I processor and provides 
 
 | Area | Testbench | Status |
 |---|---|---|
-| ALU | `tb/tb_alu.v` | Covered |
-| ALU control | `tb/tb_alu_control.v` | Covered |
-| Branch unit | `tb/tb_branch_unit.v` | Covered |
-| Control unit | `tb/tb_control_unit.v` | Covered |
-| Data memory | `tb/tb_data_memory.v` | Covered |
-| Immediate generator | `tb/tb_immediate_generator.v` | Covered |
-| Instruction decoder | `tb/tb_instruction_decoder.v` | Covered |
-| Instruction memory | `tb/tb_instruction_memory.v` | Covered |
-| Next-PC mux | `tb/tb_next_pc_mux.v` | Covered |
-| PC adder | `tb/tb_pc_adder.v` | Covered |
-| Program counter | `tb/tb_program_counter.v` | Covered |
-| Register file | `tb/tb_register_file.v` | Covered |
-| Top-level RV32I smoke test | `tb/tb_rv32i_smoke.v` | Implemented; simulation execution pending |
+| ALU | `tb/tb_alu.v` | Module testbench present |
+| ALU control | `tb/tb_alu_control.v` | Module testbench present |
+| Branch unit | `tb/tb_branch_unit.v` | Module testbench present |
+| Control unit | `tb/tb_control_unit.v` | Module testbench present |
+| Data memory | `tb/tb_data_memory.v` | Module testbench present |
+| Immediate generator | `tb/tb_immediate_generator.v` | Self-checking signed I/S/B cases in CI |
+| Instruction decoder | `tb/tb_instruction_decoder.v` | Self-checking CI test |
+| Instruction memory | `tb/tb_instruction_memory.v` | Module testbench present |
+| Next-PC mux | `tb/tb_next_pc_mux.v` | Module testbench present |
+| PC adder | `tb/tb_pc_adder.v` | Module testbench present |
+| Program counter | `tb/tb_program_counter.v` | Module testbench present |
+| Register file | `tb/tb_register_file.v` | Module testbench present |
+| Top-level RV32I smoke test | `tb/tb_rv32i_smoke.v` | Self-checking Icarus CI regression |
 
 ## Top-level smoke-test scope
 
-The new integration test exercises the program already loaded in instruction memory and checks:
+The integration test exercises the program loaded in instruction memory and checks:
 
 - `ADDI`, `ADD`, `SUB`, `AND`, and `OR` results through the register file.
 - `SW` followed by `LW` using the processor data-memory path.
 - A taken `BEQ` and the resulting flush of the younger `ADDI` instruction.
 - Final write-back values for the directed program.
+- An unsupported R-type `funct7` encoding does not commit a destination-register write.
 
-The testbench is self-checking and returns a non-zero simulator exit status when any expected value does not match.
+The testbench is self-checking and returns a non-zero simulator exit status when any expected value does not match. The top-level regression has passed in [GitHub Actions run 40346494088](https://github.com/GITTYCAT12/rv32i-riscv-processor-verilog/actions/runs/40346494088).
+
+## Immediate-generator regression scope
+
+The immediate-generator test now checks positive and negative I-type values, the minimum signed I-type immediate, positive and negative S-type offsets, positive and negative B-type offsets, and the default immediate type. These checks are run with Icarus Verilog by `.github/workflows/rtl-smoke.yml`.
 
 ## Next verification targets
 
-- Execute the top-level smoke test in the documented simulator environment and record the console result.
 - Add directed tests for additional load/store instruction sequences.
 - Expand branch and control-flow regression cases.
 - Add pipeline-oriented checks for forwarding and stall behavior.
 - Add end-to-end instruction programs and waveform review.
 
-The checklist is intentionally kept separate from RTL so verification scope can evolve without changing the processor implementation.
+The checklist distinguishes the self-checking tests currently executed in CI from module testbenches that are present but are not yet part of the automated workflow.
