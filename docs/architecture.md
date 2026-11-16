@@ -45,7 +45,7 @@ Results from the ALU or memory are written to the destination register when the 
 
 An instruction progresses through the five stages while later instructions occupy earlier stages. Pipeline registers preserve the required data and control information between stages.
 
-The current implementation supports `ADD`, `SUB`, `AND`, `OR`, `ADDI`, `LW`, `SW`, and `BEQ`.
+The RTL decode/execute paths cover arithmetic and logical R/I-type operations, immediate shifts, `LW`, `SW`, all six standard conditional branch comparisons, `JAL`, `JALR`, `LUI`, and `AUIPC`. This is a partial implementation, not a claim of full RV32I compliance; see the repository README and verification coverage for the narrower tested subset.
 
 ## Verification Strategy
 
@@ -54,8 +54,7 @@ Verification is organized around focused testbenches for individual RTL blocks. 
 ## Future Enhancements
 
 - Expand the implemented RV32I instruction subset
-- Add data forwarding paths
-- Add load-use hazard detection and pipeline stalls
-- Add branch flushing and more complete control-hazard handling
-- Add automated regression tests
+- Expand directed architectural tests for forwarding, load-use stalls, and branch/jump flushing
+- Validate instruction legality and memory alignment behavior
+- Add broader automated regression and coverage reporting
 - Add synthesis utilization and timing reports

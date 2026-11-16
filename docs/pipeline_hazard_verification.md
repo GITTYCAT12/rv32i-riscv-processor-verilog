@@ -33,4 +33,4 @@ A hazard test passes only when the architectural result matches the expected val
 
 ## Implementation note
 
-The current processor documentation identifies forwarding, hazard detection, and branch flushing as natural extensions. This verification plan deliberately separates the expected behavior from the RTL implementation so the tests can expose missing or incorrect hazard handling rather than assuming a particular microarchitecture.
+The current RTL contains EX/MEM and MEM/WB forwarding, load-use interlock logic, and EX-stage branch/jump flushing. This document tracks the directed tests still needed to verify those mechanisms; the presence of RTL logic is not itself evidence that every hazard case is correct.

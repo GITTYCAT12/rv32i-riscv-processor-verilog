@@ -42,6 +42,8 @@ The integration test exercises the program loaded in instruction memory and chec
 - `ADDI`, `ADD`, `SUB`, `AND`, and `OR` results through the register file.
 - `SW` followed by `LW` using the processor data-memory path.
 - A taken `BEQ` and the resulting flush of the younger `ADDI` instruction.
+- Legal `SLLI`, `SRLI`, and `SRAI` immediate-shift results.
+- Reserved shift-immediate encodings follow the core's documented no-write policy.
 - Final write-back values for the directed program.
 - An unsupported R-type `funct7` encoding does not commit a destination-register write.
 

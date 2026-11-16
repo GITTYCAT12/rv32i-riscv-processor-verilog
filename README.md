@@ -17,14 +17,16 @@ The repository is structured as an RTL-focused hardware design project, separati
 
 ## Supported Instructions
 
-| Type | Instructions |
+| Type | RTL decode/execute paths |
 |---|---|
-| R-Type | `ADD`, `SUB`, `AND`, `OR` |
-| I-Type | `ADDI`, `LW` |
+| R-Type | `ADD`, `SUB`, `AND`, `OR`, `XOR`, `SLT`, `SLTU`, `SLL`, `SRL`, `SRA` |
+| I-Type | `ADDI`, `ANDI`, `ORI`, `XORI`, `SLTI`, `SLTIU`, `SLLI`, `SRLI`, `SRAI`, `LW`, `JALR` |
 | S-Type | `SW` |
-| B-Type | `BEQ` |
+| B-Type | `BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU` |
+| U-Type | `LUI`, `AUIPC` |
+| J-Type | `JAL` |
 
-> This table reflects the current implementation and does not represent the complete RV32I specification.
+> This table describes RTL decode/execute paths, not complete RV32I compliance. The self-checking top-level regression covers a narrower directed subset; see [verification coverage](docs/verification_coverage.md).
 
 ## Architecture
 
@@ -122,7 +124,7 @@ The project was developed and simulated using **Xilinx Vivado / XSim**. The RTL 
 
 ## Current Scope
 
-This repository focuses on a small RV32I subset and its modular RTL implementation and verification. Natural next extensions include additional RV32I instructions, forwarding, hazard detection, branch flushing, automated regression testing, and synthesis/STA reporting.
+The RTL also contains EX/MEM and MEM/WB forwarding, load-use interlock logic, and EX-stage branch/jump flushing. Those mechanisms are present in the source, but their dedicated directed regression coverage is still incomplete. The next verification work should expand architectural tests before making full RV32I compliance claims.
 
 ## Tools
 

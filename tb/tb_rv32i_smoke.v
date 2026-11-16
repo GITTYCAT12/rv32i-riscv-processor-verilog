@@ -41,13 +41,18 @@ module tb_rv32i_smoke;
         // commit a register write.
         #1;
         dut.imem.memory[15] = 32'h02208533; // ADD x10,x1,x2 with funct7=0000001
+        dut.imem.memory[11] = 32'h00109713; // SLLI x14,x1,1 -> 10
+        dut.imem.memory[12] = 32'h00115793; // SRLI x15,x2,1 -> 5
+        dut.imem.memory[13] = 32'h40115813; // SRAI x16,x2,1 -> 5
+        dut.imem.memory[16] = 32'h02109593; // Reserved SLLI funct7=0000001
+        dut.imem.memory[17] = 32'h4210D613; // Reserved SRAI funct7=0100001
 
         // Reset the processor and register file.
         #19;
         reset = 1'b0;
 
         // Allow the 5-stage pipeline to retire the program and settle.
-        #300;
+        #400;
 
         // Arithmetic: x3=5+10, x4=10-5, x5=5&10, x6=5|10.
         check_reg(5'd1, 32'd5);
@@ -69,6 +74,14 @@ module tb_rv32i_smoke;
         check_reg(5'd8, 32'd0);
         check_reg(5'd9, 32'd42);
         check_reg(5'd10, 32'd0);
+        // Legal shift-immediate encodings retain their expected results.
+        check_reg(5'd14, 32'd10);
+        check_reg(5'd15, 32'd5);
+        check_reg(5'd16, 32'd5);
+
+        // Reserved shift-immediate encodings follow this core's no-write policy.
+        check_reg(5'd11, 32'd0);
+        check_reg(5'd12, 32'd0);
 
         if (failures == 0)
             $display("PASS: RV32I top-level smoke test completed successfully.");

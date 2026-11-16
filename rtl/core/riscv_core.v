@@ -258,6 +258,19 @@ module riscv_core (
                         id_alu_sel = 4'b0000;
 
                 endcase
+                // RV32I shift-immediate encodings reserve imm[11:5]:
+                // SLLI/SRLI require 0000000; SRAI requires 0100000.
+                // This core has no illegal-instruction trap, so reserved
+                // encodings must not commit a destination-register write.
+                if ((id_funct3 == 3'b001 &&
+                     if_id_instr[31:25] != 7'b0000000) ||
+                    (id_funct3 == 3'b101 &&
+                     (if_id_instr[31:25] != 7'b0000000 &&
+                      if_id_instr[31:25] != 7'b0100000))) begin
+                    id_reg_write = 1'b0;
+                    id_uses_rs1 = 1'b0;
+                end
+
             end
 
 
