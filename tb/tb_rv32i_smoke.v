@@ -6,6 +6,10 @@ module tb_rv32i_smoke;
     reg clk;
     reg reset;
     integer failures;
+    integer load_use_ex_cycles;
+    integer load_use_mem_cycles;
+    reg [31:0] stalled_pc;
+    reg [31:0] stalled_instruction;
 
     riscv_core dut (
         .clk               (clk),
@@ -17,6 +21,34 @@ module tb_rv32i_smoke;
 
     // 100 MHz clock.
     always #5 clk = ~clk;
+
+    // The directed LW x7 -> BEQ x3,x7 dependency must hold fetch/decode
+    // while the load advances through EX and MEM, inserting an ID/EX bubble.
+    always @(posedge clk) begin
+        if (!reset && dut.load_use_hazard) begin
+            if (dut.load_use_hazard_ex)
+                load_use_ex_cycles = load_use_ex_cycles + 1;
+            if (dut.load_use_hazard_mem)
+                load_use_mem_cycles = load_use_mem_cycles + 1;
+
+            stalled_pc = dut.pc;
+            stalled_instruction = dut.if_id_instr;
+            #1;
+
+            if (dut.pc !== stalled_pc) begin
+                $display("FAIL: PC changed during load-use stall");
+                failures = failures + 1;
+            end
+            if (dut.if_id_instr !== stalled_instruction) begin
+                $display("FAIL: IF/ID instruction changed during load-use stall");
+                failures = failures + 1;
+            end
+            if (dut.id_ex_valid !== 1'b0) begin
+                $display("FAIL: ID/EX did not receive a bubble during load-use stall");
+                failures = failures + 1;
+            end
+        end
+    end
 
     task check_reg;
         input [4:0] reg_index;
@@ -32,9 +64,11 @@ module tb_rv32i_smoke;
     endtask
 
     initial begin
-        clk      = 1'b0;
-        reset    = 1'b1;
-        failures = 0;
+        clk                  = 1'b0;
+        reset                = 1'b1;
+        failures             = 0;
+        load_use_ex_cycles  = 0;
+        load_use_mem_cycles = 0;
 
         // Inject an unsupported R-type funct7 encoding at a later instruction
         // address. With no illegal-instruction trap implemented, it must not
@@ -67,6 +101,17 @@ module tb_rv32i_smoke;
         if (dut.dmem.memory[0] !== 32'd15) begin
             $display("FAIL: memory[0] expected 15 (0x0000000f), got %0d (0x%08h)",
                      dut.dmem.memory[0], dut.dmem.memory[0]);
+            failures = failures + 1;
+        end
+
+        // The immediate load-use dependency must stall once in EX and once in
+        // MEM; the branch then consumes x7 and flushes the following ADDI.
+        if (load_use_ex_cycles != 1) begin
+            $display("FAIL: expected one EX-stage load-use stall, got %0d", load_use_ex_cycles);
+            failures = failures + 1;
+        end
+        if (load_use_mem_cycles != 1) begin
+            $display("FAIL: expected one MEM-stage load-use stall, got %0d", load_use_mem_cycles);
             failures = failures + 1;
         end
 
