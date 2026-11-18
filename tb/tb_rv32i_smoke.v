@@ -80,6 +80,8 @@ module tb_rv32i_smoke;
         dut.imem.memory[13] = 32'h40115813; // SRAI x16,x2,1 -> 5
         dut.imem.memory[16] = 32'h02109593; // Reserved SLLI funct7=0000001
         dut.imem.memory[17] = 32'h4210D613; // Reserved SRAI funct7=0100001
+        dut.imem.memory[18] = 32'h000016E7; // Reserved JALR funct3=001 must not jump/write x13
+        dut.imem.memory[19] = 32'h04D00893; // ADDI x17,x0,77 proves sequential execution continues
 
         // Reset the processor and register file.
         #19;
@@ -127,6 +129,10 @@ module tb_rv32i_smoke;
         // Reserved shift-immediate encodings follow this core's no-write policy.
         check_reg(5'd11, 32'd0);
         check_reg(5'd12, 32'd0);
+        // Reserved JALR funct3 follows the no-write/no-jump policy; the next
+        // sequential instruction must still execute.
+        check_reg(5'd13, 32'd0);
+        check_reg(5'd17, 32'd77);
 
         if (failures == 0)
             $display("PASS: RV32I top-level smoke test completed successfully.");

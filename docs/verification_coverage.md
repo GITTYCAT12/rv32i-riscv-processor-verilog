@@ -44,6 +44,7 @@ The integration test exercises the program loaded in instruction memory and chec
 - A taken `BEQ` and the resulting flush of the younger `ADDI` instruction.
 - Legal `SLLI`, `SRLI`, and `SRAI` immediate-shift results.
 - Reserved shift-immediate encodings follow the core's documented no-write policy.
+- A reserved JALR `funct3` encoding neither redirects the PC nor writes its link register; the following sequential instruction still executes.
 - Final write-back values for the directed program.
 - An unsupported R-type `funct7` encoding does not commit a destination-register write.
 

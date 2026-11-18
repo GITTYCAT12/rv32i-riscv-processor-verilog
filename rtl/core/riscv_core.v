@@ -362,18 +362,22 @@ module riscv_core (
 
             7'b1100111: begin
 
-                id_uses_rs1  = 1'b1;
-                id_reg_write = 1'b1;
+                // RV32I JALR requires funct3=000. This core has no illegal-
+                // instruction trap, so reserved encodings are treated as no-ops.
+                if (id_funct3 == 3'b000) begin
+                    id_uses_rs1  = 1'b1;
+                    id_reg_write = 1'b1;
 
-                id_jump = 1'b1;
-                id_jalr = 1'b1;
+                    id_jump = 1'b1;
+                    id_jalr = 1'b1;
 
-                id_wb_sel = 2'b10;
+                    id_wb_sel = 2'b10;
 
-                id_alu_src = 1'b1;
+                    id_alu_src = 1'b1;
 
-                id_imm = {{20{if_id_instr[31]}},
-                          if_id_instr[31:20]};
+                    id_imm = {{20{if_id_instr[31]}},
+                              if_id_instr[31:20]};
+                end
             end
 
 
