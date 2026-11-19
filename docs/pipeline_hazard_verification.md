@@ -10,11 +10,25 @@ Verify that dependent instructions receive the correct operand values when produ
 
 | Scenario | Expected behavior | Status |
 |---|---|---|
-| ALU result used by immediately following instruction | Forward newest result or stall as required by implementation | Planned |
-| ALU result used after one intervening instruction | Forward from the appropriate pipeline stage | Planned |
+| ALU result used by immediately following instruction | Forward newest result from EX/MEM | Tested for two consecutive ADDI dependencies |
+| ALU result used after one independent instruction | Forward from MEM/WB when the newer EX/MEM destination does not match | Tested for ADDI x19 → ADDI x21 |
 | Load result consumed by the next instruction | Insert required load-use stall, then use loaded value | Partial: top-level LW x7 → BEQ x3,x7 checks one EX-stage and one MEM-stage stall |
-| Multiple consecutive consumers | Preserve correct value across dependent operations | Planned |
+| Multiple consecutive consumers | Preserve correct value across dependent operations | Partial: two adjacent consumers are covered; broader consumer combinations remain planned |
 | Independent instructions around a dependency | No unnecessary stall | Planned |
+| Store-data dependency | Forward the newest source value into the store path | Planned |
+| Branch operand dependency on an ALU result | Forward the newest value before branch comparison | Planned |
+
+## Current automated ALU forwarding check
+
+The top-level Icarus smoke program includes three directed ALU dependencies:
+
+1. ADDI x18,x0,7 followed immediately by ADDI x19,x18,3; the test checks EX/MEM forwarding of 7.
+2. ADDI x19,x18,3 followed immediately by ADDI x20,x19,5; the test checks EX/MEM forwarding of 10.
+3. ADDI x19,x18,3, one independent ADDI, then ADDI x21,x19,2; the test checks MEM/WB forwarding of 10 while a different destination is in EX/MEM.
+
+The test samples the forwarding operand and the corresponding pipeline-register write-enable/destination signals at the falling edge, after rising-edge pipeline updates. It also checks the final architectural register values.
+
+These cases validate the two forwarding sources for the tested ALU-source operand. They do not establish exhaustive forwarding coverage for operand B, stores, branches, JALR, or every instruction class.
 
 ## Current automated load-use check
 
@@ -33,7 +47,7 @@ For each directed test, inspect:
 - Source and destination register IDs.
 - Register-write enable signals.
 - Pipeline-stage register values.
-- Forwarding select/control signals, when implemented.
+- Forwarding operand values and source-stage match conditions.
 - Stall/enable controls, when implemented.
 - Program-counter progression during a load-use dependency.
 

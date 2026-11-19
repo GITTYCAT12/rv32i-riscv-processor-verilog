@@ -1,6 +1,6 @@
 // Top-level self-checking smoke test for the current RV32I program.
-// The instruction memory contains a directed program covering arithmetic,
-// load/store, a taken BEQ, and write-back/flush behavior.
+// The instruction memory contains directed arithmetic, load/store, branch,
+// load-use interlock, and ALU-forwarding scenarios.
 module tb_rv32i_smoke;
 
     reg clk;
@@ -8,6 +8,8 @@ module tb_rv32i_smoke;
     integer failures;
     integer load_use_ex_cycles;
     integer load_use_mem_cycles;
+    integer ex_mem_forward_checks;
+    integer mem_wb_forward_checks;
     reg [31:0] stalled_pc;
     reg [31:0] stalled_instruction;
 
@@ -50,6 +52,53 @@ module tb_rv32i_smoke;
         end
     end
 
+    // Sample forwarding after the rising-edge pipeline-register updates.
+    // PCs 84 and 88 consume the immediately preceding ALU result from EX/MEM.
+    // PC 92 consumes x19 after one independent instruction, from MEM/WB.
+    always @(negedge clk) begin
+        if (!reset && dut.id_ex_valid) begin
+            case (dut.id_ex_pc)
+                32'd84: begin
+                    if (dut.ex_mem_reg_write !== 1'b1 ||
+                        dut.ex_mem_mem_read !== 1'b0 ||
+                        dut.ex_mem_rd !== 5'd18 ||
+                        dut.ex_forward_a !== 32'd7) begin
+                        $display("FAIL: EX/MEM forwarding for PC 84 was incorrect");
+                        failures = failures + 1;
+                    end else begin
+                        ex_mem_forward_checks = ex_mem_forward_checks + 1;
+                    end
+                end
+
+                32'd88: begin
+                    if (dut.ex_mem_reg_write !== 1'b1 ||
+                        dut.ex_mem_mem_read !== 1'b0 ||
+                        dut.ex_mem_rd !== 5'd19 ||
+                        dut.ex_forward_a !== 32'd10) begin
+                        $display("FAIL: EX/MEM forwarding for PC 88 was incorrect");
+                        failures = failures + 1;
+                    end else begin
+                        ex_mem_forward_checks = ex_mem_forward_checks + 1;
+                    end
+                end
+
+                32'd92: begin
+                    if (dut.mem_wb_reg_write !== 1'b1 ||
+                        dut.mem_wb_rd !== 5'd19 ||
+                        dut.ex_forward_a !== 32'd10) begin
+                        $display("FAIL: MEM/WB forwarding for PC 92 was incorrect");
+                        failures = failures + 1;
+                    end else begin
+                        mem_wb_forward_checks = mem_wb_forward_checks + 1;
+                    end
+                end
+
+                default: begin
+                end
+            endcase
+        end
+    end
+
     task check_reg;
         input [4:0] reg_index;
         input [31:0] expected;
@@ -64,15 +113,15 @@ module tb_rv32i_smoke;
     endtask
 
     initial begin
-        clk                  = 1'b0;
-        reset                = 1'b1;
-        failures             = 0;
-        load_use_ex_cycles  = 0;
-        load_use_mem_cycles = 0;
+        clk                   = 1'b0;
+        reset                 = 1'b1;
+        failures              = 0;
+        load_use_ex_cycles    = 0;
+        load_use_mem_cycles   = 0;
+        ex_mem_forward_checks = 0;
+        mem_wb_forward_checks = 0;
 
-        // Inject an unsupported R-type funct7 encoding at a later instruction
-        // address. With no illegal-instruction trap implemented, it must not
-        // commit a register write.
+        // Inject unsupported encodings and directed dependency instructions.
         #1;
         dut.imem.memory[15] = 32'h02208533; // ADD x10,x1,x2 with funct7=0000001
         dut.imem.memory[11] = 32'h00109713; // SLLI x14,x1,1 -> 10
@@ -83,12 +132,20 @@ module tb_rv32i_smoke;
         dut.imem.memory[18] = 32'h000016E7; // Reserved JALR funct3=001 must not jump/write x13
         dut.imem.memory[19] = 32'h04D00893; // ADDI x17,x0,77 proves sequential execution continues
 
+        // Back-to-back ALU dependencies exercise EX/MEM forwarding.
+        dut.imem.memory[20] = 32'h00700913; // ADDI x18,x0,7
+        dut.imem.memory[21] = 32'h00390993; // ADDI x19,x18,3 -> 10
+        dut.imem.memory[22] = 32'h00598A13; // ADDI x20,x19,5 -> 15
+        // One independent instruction separates the x19 producer and consumer.
+        dut.imem.memory[23] = 32'h00298A93; // ADDI x21,x19,2 -> 12 (MEM/WB)
+        dut.imem.memory[24] = 32'h00100B13; // ADDI x22,x0,1
+
         // Reset the processor and register file.
         #19;
         reset = 1'b0;
 
         // Allow the 5-stage pipeline to retire the program and settle.
-        #400;
+        #500;
 
         // Arithmetic: x3=5+10, x4=10-5, x5=5&10, x6=5|10.
         check_reg(5'd1, 32'd5);
@@ -117,6 +174,17 @@ module tb_rv32i_smoke;
             failures = failures + 1;
         end
 
+        // The two adjacent dependencies must use EX/MEM; the dependency with
+        // one independent instruction must use MEM/WB.
+        if (ex_mem_forward_checks != 2) begin
+            $display("FAIL: expected two EX/MEM forwarding checks, got %0d", ex_mem_forward_checks);
+            failures = failures + 1;
+        end
+        if (mem_wb_forward_checks != 1) begin
+            $display("FAIL: expected one MEM/WB forwarding check, got %0d", mem_wb_forward_checks);
+            failures = failures + 1;
+        end
+
         // Taken BEQ must flush the following ADDI x8,x0,99.
         check_reg(5'd8, 32'd0);
         check_reg(5'd9, 32'd42);
@@ -133,6 +201,13 @@ module tb_rv32i_smoke;
         // sequential instruction must still execute.
         check_reg(5'd13, 32'd0);
         check_reg(5'd17, 32'd77);
+
+        // Forwarded ALU dependencies must produce their architectural values.
+        check_reg(5'd18, 32'd7);
+        check_reg(5'd19, 32'd10);
+        check_reg(5'd20, 32'd15);
+        check_reg(5'd21, 32'd12);
+        check_reg(5'd22, 32'd1);
 
         if (failures == 0)
             $display("PASS: RV32I top-level smoke test completed successfully.");
