@@ -85,6 +85,7 @@ module tb_data_memory;
         MemWrite = 1'b1;
         expect_read(32'h12345678, "write does not update before rising edge");
         @(posedge clk);
+        #1;
         MemWrite = 1'b0;
         expect_read(32'h87654321, "write updates on rising edge");
 
