@@ -35,5 +35,13 @@ jobs:
             -o "$build_dir/immediate.vvp" rtl/datapath/immediate_generator.v tb/tb_immediate_generator.v
           vvp "$build_dir/immediate.vvp"
 
+      - name: Run data memory read/write test
+        run: |
+          build_dir="$(mktemp -d)"
+          trap 'rm -rf "$build_dir"' EXIT
+          iverilog -g2012 -Wall -s tb_data_memory \
+            -o "$build_dir/data_memory.vvp" rtl/memory/data_memory.v tb/tb_data_memory.v
+          vvp "$build_dir/data_memory.vvp"
+
       - name: Run top-level RV32I smoke test
         run: bash sim/run_smoke.sh

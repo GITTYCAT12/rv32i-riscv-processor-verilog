@@ -47,6 +47,12 @@ An instruction progresses through the five stages while later instructions occup
 
 The RTL decode/execute paths cover arithmetic and logical R/I-type operations, immediate shifts, `LW`, `SW`, all six standard conditional branch comparisons, `JAL`, `JALR`, `LUI`, and `AUIPC`. This is a partial implementation, not a claim of full RV32I compliance; see the repository README and verification coverage for the narrower tested subset.
 
+## Current Data-Memory Model
+
+The current `rtl/memory/data_memory.v` model contains 256 words of 32 bits each (1 KiB). It uses `address[9:2]` as the word index, performs writes on the rising clock edge, and provides a combinational read when `MemRead` is asserted.
+
+This is a compact simulation model, not a complete RV32I memory subsystem. The low two address bits are ignored, addresses outside the 1 KiB indexed window alias into the same 256-word array, and the module does not implement byte enables, alignment traps, access faults, or a bus protocol. The current self-checking memory test therefore exercises aligned word accesses within the modeled range only.
+
 ## Verification Strategy
 
 Verification is organized around focused testbenches for individual RTL blocks. This makes it possible to isolate functional issues in the ALU, control logic, memory, register file, immediate generation, PC logic, and branch logic before debugging complete processor behavior.
