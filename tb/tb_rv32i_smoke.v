@@ -10,6 +10,9 @@ module tb_rv32i_smoke;
     integer load_use_mem_cycles;
     integer ex_mem_forward_checks;
     integer mem_wb_forward_checks;
+    integer store_forward_checks;
+    integer store_data_checks;
+    integer store_dependency_stall_cycles;
     reg [31:0] stalled_pc;
     reg [31:0] stalled_instruction;
 
@@ -23,6 +26,16 @@ module tb_rv32i_smoke;
 
     // 100 MHz clock.
     always #5 clk = ~clk;
+
+    // An ADDI producer immediately followed by SW must not trigger a stall.
+    // The store consumes x23 from the EX/MEM forwarding path.
+    always @(posedge clk) begin
+        if (!reset && dut.id_ex_valid && dut.id_ex_pc == 32'd100 &&
+            dut.if_id_valid && dut.if_id_pc == 32'd104 &&
+            dut.load_use_hazard) begin
+            store_dependency_stall_cycles = store_dependency_stall_cycles + 1;
+        end
+    end
 
     // The directed LW x7 -> BEQ x3,x7 dependency must hold fetch/decode
     // while the load advances through EX and MEM, inserting an ID/EX bubble.
@@ -93,9 +106,32 @@ module tb_rv32i_smoke;
                     end
                 end
 
+                32'd104: begin
+                    if (dut.ex_mem_reg_write !== 1'b1 ||
+                        dut.ex_mem_mem_read !== 1'b0 ||
+                        dut.ex_mem_rd !== 5'd23 ||
+                        dut.ex_forward_b !== 32'd85) begin
+                        $display("FAIL: EX/MEM store-data forwarding for PC 104 was incorrect");
+                        failures = failures + 1;
+                    end else begin
+                        store_forward_checks = store_forward_checks + 1;
+                    end
+                end
+
                 default: begin
                 end
             endcase
+        end
+
+        if (!reset && dut.ex_mem_valid && dut.ex_mem_mem_write &&
+            dut.ex_mem_alu_result == 32'd4) begin
+            if (dut.ex_mem_store_data !== 32'd85) begin
+                $display("FAIL: store data captured 0x%08h instead of 0x00000055",
+                         dut.ex_mem_store_data);
+                failures = failures + 1;
+            end else begin
+                store_data_checks = store_data_checks + 1;
+            end
         end
     end
 
@@ -120,6 +156,9 @@ module tb_rv32i_smoke;
         load_use_mem_cycles   = 0;
         ex_mem_forward_checks = 0;
         mem_wb_forward_checks = 0;
+        store_forward_checks = 0;
+        store_data_checks = 0;
+        store_dependency_stall_cycles = 0;
 
         // Inject unsupported encodings and directed dependency instructions.
         #1;
@@ -139,6 +178,9 @@ module tb_rv32i_smoke;
         // One independent instruction separates the x19 producer and consumer.
         dut.imem.memory[23] = 32'h00298A93; // ADDI x21,x19,2 -> 12 (MEM/WB)
         dut.imem.memory[24] = 32'h00100B13; // ADDI x22,x0,1
+        // Immediate ALU-to-store dependency exercises EX/MEM forwarding of rs2.
+        dut.imem.memory[25] = 32'h05500B93; // ADDI x23,x0,85
+        dut.imem.memory[26] = 32'h01702223; // SW x23,4(x0) -> memory[1]=85
 
         // Reset the processor and register file.
         #19;
@@ -162,6 +204,11 @@ module tb_rv32i_smoke;
                      dut.dmem.memory[0], dut.dmem.memory[0]);
             failures = failures + 1;
         end
+        if (dut.dmem.memory[1] !== 32'd85) begin
+            $display("FAIL: memory[1] expected 85 (0x00000055), got %0d (0x%08h)",
+                     dut.dmem.memory[1], dut.dmem.memory[1]);
+            failures = failures + 1;
+        end
 
         // The immediate load-use dependency must stall once in EX and once in
         // MEM; the branch then consumes x7 and flushes the following ADDI.
@@ -182,6 +229,19 @@ module tb_rv32i_smoke;
         end
         if (mem_wb_forward_checks != 1) begin
             $display("FAIL: expected one MEM/WB forwarding check, got %0d", mem_wb_forward_checks);
+            failures = failures + 1;
+        end
+        if (store_forward_checks != 1) begin
+            $display("FAIL: expected one EX/MEM store-data forwarding check, got %0d", store_forward_checks);
+            failures = failures + 1;
+        end
+        if (store_data_checks != 1) begin
+            $display("FAIL: expected one forwarded store-data capture, got %0d", store_data_checks);
+            failures = failures + 1;
+        end
+        if (store_dependency_stall_cycles != 0) begin
+            $display("FAIL: store dependency incurred %0d unnecessary stall cycle(s)",
+                     store_dependency_stall_cycles);
             failures = failures + 1;
         end
 
@@ -208,6 +268,7 @@ module tb_rv32i_smoke;
         check_reg(5'd20, 32'd15);
         check_reg(5'd21, 32'd12);
         check_reg(5'd22, 32'd1);
+        check_reg(5'd23, 32'd85);
 
         if (failures == 0)
             $display("PASS: RV32I top-level smoke test completed successfully.");

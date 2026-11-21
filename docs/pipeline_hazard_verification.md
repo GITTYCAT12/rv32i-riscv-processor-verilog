@@ -15,7 +15,7 @@ Verify that dependent instructions receive the correct operand values when produ
 | Load result consumed by the next instruction | Insert required load-use stall, then use loaded value | Partial: top-level LW x7 → BEQ x3,x7 checks one EX-stage and one MEM-stage stall |
 | Multiple consecutive consumers | Preserve correct value across dependent operations | Partial: two adjacent consumers are covered; broader consumer combinations remain planned |
 | Independent instructions around a dependency | No unnecessary stall | Planned |
-| Store-data dependency | Forward the newest source value into the store path | Planned |
+| Store-data dependency | Forward the newest source value into the store path | Tested for immediate ADDI x23 → SW x23 |
 | Branch operand dependency on an ALU result | Forward the newest value before branch comparison | Planned |
 
 ## Current automated ALU forwarding check
@@ -28,7 +28,18 @@ The top-level Icarus smoke program includes three directed ALU dependencies:
 
 The test samples the forwarding operand and the corresponding pipeline-register write-enable/destination signals at the falling edge, after rising-edge pipeline updates. It also checks the final architectural register values.
 
-These cases validate the two forwarding sources for the tested ALU-source operand. They do not establish exhaustive forwarding coverage for operand B, stores, branches, JALR, or every instruction class.
+These cases validate the two forwarding sources for the tested ALU-source operand. A separate immediate ADDI-to-SW case checks EX/MEM forwarding of operand B into the store-data pipeline register and the final memory word. This does not establish exhaustive forwarding coverage for all stores, branches, JALR, or every instruction class.
+
+## Current automated store-data check
+
+The top-level Icarus smoke program executes `ADDI x23,x0,85` immediately followed by `SW x23,4(x0)`. The test checks that:
+
+- The store's EX-stage `ex_forward_b` receives 85 from the preceding instruction in EX/MEM.
+- The EX/MEM store-data register captures the forwarded value.
+- The write reaches data-memory word 1 at byte address 4.
+- The producer/consumer overlap incurs no load-use stall.
+
+This is one directed ALU-to-store dependency. It does not verify store-data forwarding from MEM/WB or every store/producer combination.
 
 ## Current automated load-use check
 
