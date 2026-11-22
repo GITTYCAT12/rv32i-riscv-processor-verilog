@@ -15,7 +15,7 @@ Verify that dependent instructions receive the correct operand values when produ
 | Load result consumed by the next instruction | Insert required load-use stall, then use loaded value | Partial: top-level LW x7 → BEQ x3,x7 checks one EX-stage and one MEM-stage stall |
 | Multiple consecutive consumers | Preserve correct value across dependent operations | Partial: two adjacent consumers are covered; broader consumer combinations remain planned |
 | Independent instructions around a dependency | No unnecessary stall | Planned |
-| Store-data dependency | Forward the newest source value into the store path | Tested for immediate ADDI x23 → SW x23 |
+| Store-data dependency | Forward the newest source value into the store path | Tested for immediate EX/MEM ADDI x23 → SW x23 and one-gap MEM/WB ADDI x24 → SW x24 |
 | Branch operand dependency on an ALU result | Forward the newest value before branch comparison | Planned |
 
 ## Current automated ALU forwarding check
@@ -39,7 +39,7 @@ The top-level Icarus smoke program executes `ADDI x23,x0,85` immediately followe
 - The write reaches data-memory word 1 at byte address 4.
 - The producer/consumer overlap incurs no load-use stall.
 
-This is one directed ALU-to-store dependency. It does not verify store-data forwarding from MEM/WB or every store/producer combination.
+A second directed sequence executes ADDI x24,x0,102, an independent ADDI x25,x0,1, then SW x24,8(x0). The test checks that EX/MEM contains the unrelated x25 producer while MEM/WB supplies x24=102 to the store's ex_forward_b, that the EX/MEM store-data register captures 102, and that data-memory word 2 receives 102. This specifically exercises the MEM/WB store-data source; it does not cover every producer instruction or store combination.
 
 ## Current automated load-use check
 
