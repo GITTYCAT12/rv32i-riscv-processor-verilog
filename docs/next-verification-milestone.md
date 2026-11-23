@@ -27,7 +27,9 @@ The Icarus top-level smoke test currently checks:
 - Two adjacent ALU dependencies using EX/MEM forwarding.
 - One ALU dependency after an independent instruction using MEM/WB forwarding.
 - One immediate load-to-branch dependency with an EX-stage and a MEM-stage stall.
-- A taken BEQ flush and selected reserved instruction encodings.
+- BEQ operand forwarding from EX/MEM for an adjacent ALU producer.
+- BEQ operand forwarding from MEM/WB with one independent instruction in between.
+- Taken-branch flush checks for both directed BEQ forwarding cases and selected reserved instruction encodings.
 
 See [pipeline hazard verification](pipeline_hazard_verification.md) for exact scenarios and remaining gaps.
 

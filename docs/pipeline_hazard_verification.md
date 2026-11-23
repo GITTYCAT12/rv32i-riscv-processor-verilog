@@ -16,7 +16,7 @@ Verify that dependent instructions receive the correct operand values when produ
 | Multiple consecutive consumers | Preserve correct value across dependent operations | Partial: two adjacent consumers are covered; broader consumer combinations remain planned |
 | Independent instructions around a dependency | No unnecessary stall | Planned |
 | Store-data dependency | Forward the newest source value into the store path | Tested for immediate EX/MEM ADDI x23 → SW x23 and one-gap MEM/WB ADDI x24 → SW x24 |
-| Branch operand dependency on an ALU result | Forward the newest value before branch comparison | Planned |
+| Branch operand dependency on an ALU result | Forward the newest value before branch comparison | Tested for BEQ with EX/MEM (adjacent) and MEM/WB (one independent instruction) |
 
 ## Current automated ALU forwarding check
 
@@ -50,6 +50,15 @@ The top-level Icarus smoke program stores a value, loads it into x7, and immedia
 - Exactly one EX-stage and one MEM-stage load-use hazard cycle are observed.
 
 This is one directed load-to-branch case, not exhaustive coverage of load consumers or all pipeline hazard combinations.
+
+## Current automated branch-operand forwarding check
+
+The top-level Icarus smoke program now includes two directed BEQ dependencies:
+
+1. `ADDI x26,x0,9` immediately followed by `BEQ x26,x26,+8`. The test checks that both branch operands receive 9 from EX/MEM, that the branch is taken to PC 132, and that the sequential instruction at PC 128 is flushed.
+2. `ADDI x29,x0,11`, one independent `ADDI x30,x0,1`, then `BEQ x29,x29,+8`. The test checks that EX/MEM contains the unrelated x30 producer while MEM/WB supplies 11 to both branch operands, and that the branch is taken to PC 152.
+
+The final register checks confirm that the wrong-path writes to x27 do not occur and that the target-path instructions execute. These cases cover BEQ with both forwarding sources; they do not establish forwarding coverage for every branch condition or JALR.
 
 ## Waveform checks
 

@@ -1,6 +1,6 @@
 // Top-level self-checking smoke test for the current RV32I program.
 // The instruction memory contains directed arithmetic, load/store, branch,
-// load-use interlock, and ALU-forwarding scenarios.
+// load-use interlock, ALU-forwarding, and branch-forwarding scenarios.
 module tb_rv32i_smoke;
 
     reg clk;
@@ -16,6 +16,8 @@ module tb_rv32i_smoke;
     integer mem_wb_store_forward_checks;
     integer mem_wb_store_data_checks;
     integer mem_wb_store_dependency_stall_cycles;
+    integer branch_ex_mem_forward_checks;
+    integer branch_mem_wb_forward_checks;
     reg [31:0] stalled_pc;
     reg [31:0] stalled_instruction;
 
@@ -146,6 +148,39 @@ module tb_rv32i_smoke;
                     end
                 end
 
+                32'd124: begin
+                    if (dut.id_ex_branch !== 1'b1 ||
+                        dut.ex_mem_reg_write !== 1'b1 ||
+                        dut.ex_mem_mem_read !== 1'b0 ||
+                        dut.ex_mem_rd !== 5'd26 ||
+                        dut.ex_forward_a !== 32'd9 ||
+                        dut.ex_forward_b !== 32'd9 ||
+                        dut.ex_branch_taken !== 1'b1 ||
+                        dut.ex_branch_target !== 32'd132) begin
+                        $display("FAIL: EX/MEM branch-operand forwarding for PC 124 was incorrect");
+                        failures = failures + 1;
+                    end else begin
+                        branch_ex_mem_forward_checks = branch_ex_mem_forward_checks + 1;
+                    end
+                end
+
+                32'd144: begin
+                    if (dut.id_ex_branch !== 1'b1 ||
+                        dut.ex_mem_reg_write !== 1'b1 ||
+                        dut.ex_mem_rd !== 5'd30 ||
+                        dut.mem_wb_reg_write !== 1'b1 ||
+                        dut.mem_wb_rd !== 5'd29 ||
+                        dut.ex_forward_a !== 32'd11 ||
+                        dut.ex_forward_b !== 32'd11 ||
+                        dut.ex_branch_taken !== 1'b1 ||
+                        dut.ex_branch_target !== 32'd152) begin
+                        $display("FAIL: MEM/WB branch-operand forwarding for PC 144 was incorrect");
+                        failures = failures + 1;
+                    end else begin
+                        branch_mem_wb_forward_checks = branch_mem_wb_forward_checks + 1;
+                    end
+                end
+
                 default: begin
                 end
             endcase
@@ -201,6 +236,8 @@ module tb_rv32i_smoke;
         mem_wb_store_forward_checks = 0;
         mem_wb_store_data_checks = 0;
         mem_wb_store_dependency_stall_cycles = 0;
+        branch_ex_mem_forward_checks = 0;
+        branch_mem_wb_forward_checks = 0;
 
         // Inject unsupported encodings and directed dependency instructions.
         #1;
@@ -228,6 +265,21 @@ module tb_rv32i_smoke;
         dut.imem.memory[27] = 32'h06600C13; // ADDI x24,x0,102
         dut.imem.memory[28] = 32'h00100C93; // ADDI x25,x0,1 (independent)
         dut.imem.memory[29] = 32'h01802423; // SW x24,8(x0) -> memory[2]=102
+
+        // Adjacent ADDI -> BEQ dependency must forward both branch operands
+        // from EX/MEM and flush the sequential instruction at PC 128.
+        dut.imem.memory[30] = 32'h00900D13; // ADDI x26,x0,9
+        dut.imem.memory[31] = 32'h01AD0463; // BEQ x26,x26,+8 -> PC 132
+        dut.imem.memory[32] = 32'h06300D93; // ADDI x27,x0,99 (must be flushed)
+        dut.imem.memory[33] = 32'h03700E13; // ADDI x28,x0,55 (branch target)
+
+        // One independent instruction separates the x29 producer and BEQ.
+        // MEM/WB must supply both comparison operands while x30 is in EX/MEM.
+        dut.imem.memory[34] = 32'h00B00E93; // ADDI x29,x0,11
+        dut.imem.memory[35] = 32'h00100F13; // ADDI x30,x0,1 (independent)
+        dut.imem.memory[36] = 32'h01DE8463; // BEQ x29,x29,+8 -> PC 152
+        dut.imem.memory[37] = 32'h04D00D93; // ADDI x27,x0,77 (must be flushed)
+        dut.imem.memory[38] = 32'h04200F93; // ADDI x31,x0,66 (branch target)
 
         // Reset the processor and register file.
         #19;
@@ -311,6 +363,16 @@ module tb_rv32i_smoke;
                      mem_wb_store_dependency_stall_cycles);
             failures = failures + 1;
         end
+        if (branch_ex_mem_forward_checks != 1) begin
+            $display("FAIL: expected one EX/MEM branch-forwarding check, got %0d",
+                     branch_ex_mem_forward_checks);
+            failures = failures + 1;
+        end
+        if (branch_mem_wb_forward_checks != 1) begin
+            $display("FAIL: expected one MEM/WB branch-forwarding check, got %0d",
+                     branch_mem_wb_forward_checks);
+            failures = failures + 1;
+        end
 
         // Taken BEQ must flush the following ADDI x8,x0,99.
         check_reg(5'd8, 32'd0);
@@ -338,6 +400,12 @@ module tb_rv32i_smoke;
         check_reg(5'd23, 32'd85);
         check_reg(5'd24, 32'd102);
         check_reg(5'd25, 32'd1);
+        check_reg(5'd26, 32'd9);
+        check_reg(5'd27, 32'd0);
+        check_reg(5'd28, 32'd55);
+        check_reg(5'd29, 32'd11);
+        check_reg(5'd30, 32'd1);
+        check_reg(5'd31, 32'd66);
 
         if (failures == 0)
             $display("PASS: RV32I top-level smoke test completed successfully.");
