@@ -8,7 +8,7 @@ The current design implements a small RV32I instruction subset with a five-stage
 
 `IF → ID → EX → MEM → WB`
 
-The repository currently emphasizes module-level verification and waveform inspection. Full processor-level regression and hazard/forwarding verification remain future extensions.
+The repository includes module-level testbenches and a self-checking Icarus top-level smoke regression. The integration test covers a directed subset of the implemented pipeline behavior; it is not a full RV32I compliance suite.
 
 ## Recommended simulation sequence
 

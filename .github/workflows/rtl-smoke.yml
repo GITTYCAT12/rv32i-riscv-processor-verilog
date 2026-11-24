@@ -43,5 +43,13 @@ jobs:
             -o "$build_dir/data_memory.vvp" rtl/memory/data_memory.v tb/tb_data_memory.v
           vvp "$build_dir/data_memory.vvp"
 
+      - name: Run next-PC mux selection test
+        run: |
+          build_dir="$(mktemp -d)"
+          trap 'rm -rf "$build_dir"' EXIT
+          iverilog -g2012 -Wall -s tb_next_pc_mux \
+            -o "$build_dir/next_pc_mux.vvp" rtl/datapath/next_pc_mux.v tb/tb_next_pc_mux.v
+          vvp "$build_dir/next_pc_mux.vvp"
+
       - name: Run top-level RV32I smoke test
         run: bash sim/run_smoke.sh
